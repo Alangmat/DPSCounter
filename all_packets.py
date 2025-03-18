@@ -18,6 +18,42 @@ show_interfaces()
 start()
 print(config.INTERFACE_USER)
 
+def segmentation(data):
+    split_marker_U = b'U\x00'
+    split_marker_damage = b'\xab\x03\r'
+    split_marker_create_luna = b'\x1a)\x087'
+    segments = []
+    current_segment = bytearray()
+    i = 0 
+    while i < len(data):
+        # Пакет с уроном
+        if data[i:i+3] == split_marker_damage:
+            if current_segment:
+                segments.append(bytes(current_segment))
+            current_segment = bytearray(data[i:i+7])
+            i += 7
+        # Пакет с кошкой
+        elif data[i:i+4] == split_marker_create_luna:
+            if current_segment:
+                segments.append(bytes(current_segment))
+            current_segment = bytearray(data[i:i+4]) 
+            i += 4
+        elif data[i:i+2] == split_marker_U:
+            if current_segment:
+                segments.append(bytes(current_segment))
+            current_segment = bytearray(data[i:i+2]) 
+            i += 2
+        else:
+            current_segment.append(data[i])
+            i += 1
+
+    if current_segment:
+        segments.append(bytes(current_segment))
+    
+    return segments
+
+
+
 def byte_string_to_int(byte_str):
     # Преобразование строкового байта (например, '\\x15') в числовое значение
     if byte_str.startswith('\\x'):
@@ -60,6 +96,7 @@ def get_gamage(packet):
             #numbers = int.from_bytes(number_bytes, byteorder='little')
             #total_damage = total_damage + int(numbers)
             bytes = list_to_bytes(currents)
+            # print(bytes)
             #print(bytes)
             #print(len(bytes))
             # if len(bytes) == 4:
@@ -97,39 +134,7 @@ def handle_packet(packet):
             if payload:
                 data = payload.load
                 # print(data)
-                split_marker_U = b'U\x00'
-                split_marker_damage = b'\xab\x03\r'
-                # split_xab = b'\xab'
-                split_marker_create_luna = b'\x1a)\x087'
-                segments = []
-                current_segment = bytearray()
-                i = 0 
-
-                # print(data)
-                while i < len(data):
-                    # Пакет с уроном
-                    if data[i:i+3] == split_marker_damage:
-                        if current_segment:
-                            segments.append(bytes(current_segment))
-                        current_segment = bytearray(data[i:i+3])
-                        i += 3
-                    # Пакет с кошкой
-                    elif data[i:i+4] == split_marker_create_luna:
-                        if current_segment:
-                            segments.append(bytes(current_segment))
-                        current_segment = bytearray(data[i:i+4]) 
-                        i += 4
-                    elif data[i:i+2] == split_marker_U:
-                        if current_segment:
-                            segments.append(bytes(current_segment))
-                        current_segment = bytearray(data[i:i+2]) 
-                        i += 2
-                    else:
-                        current_segment.append(data[i])
-                        i += 1
-
-                if current_segment:
-                    segments.append(bytes(current_segment))
+                segments = segmentation(data)
 
                 i_segment = 0
                 while i_segment < len(segments):
@@ -163,11 +168,18 @@ def handle_packet(packet):
                                             id_hero = next(k for k, v in beast_masters_lists.items() if v == id_damage_source)
                                             if id_hero in damage_dict.keys():
                                                 damage_dict[id_hero] += damage
-                                                if id_hero in damages_lists.keys():
-                                                    if id_goal in damages_lists[id_hero].keys():
-                                                        damages_lists[id_hero][id_goal] += damage
-                                                    else:
-                                                        damages_lists[id_hero][id_goal] = damage
+                                                if id_hero not in damages_lists:
+                                                    damages_lists[id_hero] = {}  # Создаём вложенный словарь для нового источника урона
+
+                                                if id_goal in damages_lists[id_hero]:
+                                                    damages_lists[id_hero][id_goal] += damage
+                                                else:
+                                                    damages_lists[id_hero][id_goal] = damage
+                                                # if id_hero in damages_lists.keys():
+                                                #     if id_goal in damages_lists[id_hero].keys():
+                                                #         damages_lists[id_hero][id_goal] += damage
+                                                #     else:
+                                                #         damages_lists[id_hero][id_goal] = damage
                                             else:
                                                 damage_dict[id_hero] = damage
                                             nickname = next((n for id, n in heroes if id == id_hero), None)
@@ -181,11 +193,18 @@ def handle_packet(packet):
                                                 if id_damage_source == id:
                                                     if id_damage_source in damage_dict.keys():
                                                         damage_dict[id_damage_source] += damage
-                                                        if id_damage_source in damages_lists.keys():
-                                                            if id_goal in damages_lists[id_damage_source].keys():
-                                                                damages_lists[id_damage_source][id_goal] += damage
-                                                            else:
-                                                                damages_lists[id_damage_source][id_goal] = damage
+                                                        if id_damage_source not in damages_lists:
+                                                            damages_lists[id_damage_source] = {}  # Создаём вложенный словарь для нового источника урона
+
+                                                        if id_goal in damages_lists[id_damage_source]:
+                                                            damages_lists[id_damage_source][id_goal] += damage
+                                                        else:
+                                                            damages_lists[id_damage_source][id_goal] = damage
+                                                        # if id_damage_source in damages_lists.keys():
+                                                        #     if id_goal in damages_lists[id_damage_source].keys():
+                                                        #         damages_lists[id_damage_source][id_goal] += damage
+                                                        #     else:
+                                                        #         damages_lists[id_damage_source][id_goal] = damage
                                                     else:
                                                         damage_dict[id_damage_source] = damage
                                                     print(f"{nick} - {damage_dict[id]}")
@@ -485,7 +504,7 @@ def listen_keys():
                     print(f"{next((n for id, n in heroes if id == k), None)} - {damage_dict[k]}")
                     if k in damages_lists.keys():
                         print("--Урон по целям--")
-                        sorted_goals = dict(sorted(damages_lists[k].items(), key=lambda item: item[1], reverse=True))
+                        sorted_goals = dict(list(sorted(damages_lists[k].items(), key=lambda item: item[1], reverse=True)[:2]))
                         for id_goal, dd in sorted_goals.items():
                             print(f"\t{dd}\t- {id_goal}")
                         print("-----------------\n")

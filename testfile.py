@@ -44,7 +44,7 @@ def save_data_to_files(data, damage_dict, time, base_folder="logs"):
                 file.write(f"ДПМ в данную цель = {dpm}\n")
                 file.write("\n".join(records))
             
-            print(f"Данные записаны в файл: {file_path}")
+            # print(f"Данные записаны в файл: {file_path}")
 
 def calc_dpm(records):
     i = 0
@@ -72,7 +72,7 @@ def calc_dpm(records):
     # print("прошел перевод")
     if seconds_difference >= 1:
         dpm = sum_damage / seconds_difference * 60
-        print("прошел расчет дпм")
+        # print("прошел расчет дпм")
         return dpm
     return sum_damage
 

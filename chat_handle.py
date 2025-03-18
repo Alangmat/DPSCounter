@@ -28,7 +28,8 @@ def handle_packet_chat(packet):
                     
                     # ЭТО ДЕЛАЛ ЧТОБ ТОЛЬКО ОТ АЛАНГМАТОРА ПРИХОДИЛИ ПАКЕТЫ
                     # if b'Alangmator' in data:
-                    #     sequence = b'\n\x00\x00\x00\x00\x00\x04'
+                    #     # print(data)
+                    #     sequence = b'\x00\x00\x00\x00\x00\x04'
                     #     start_index = data.find(sequence)
 
                     #     if start_index != -1:
